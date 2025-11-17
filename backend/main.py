@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import events, teams, venues
+from backend.routers import events, teams, venues
 
 app = FastAPI()
 
