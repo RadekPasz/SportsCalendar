@@ -4,7 +4,6 @@ import os
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(APP_DIR, '..'))
-# Prefer an existing 'sports.db' if present (user data), otherwise use 'app.db'
 DB_CANDIDATES = [os.path.join(ROOT, 'database', 'sports.db'), os.path.join(ROOT, 'database', 'app.db')]
 DB_PATH = next((p for p in DB_CANDIDATES if os.path.exists(p)), DB_CANDIDATES[-1])
 SCHEMA_PATH = os.path.join(ROOT, 'database', 'schema.sql')
@@ -44,12 +43,12 @@ def api_venues():
     venues = [{'id': r['venue_id'], 'name': r['name'], 'city': r['city']} for r in rows]
     return jsonify(venues)
 
-
+#Displaying events in the app
 @app.route('/api/events')
 def api_events():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Join with sport and venue to get readable names
+    #Join with sport and venue for readable names
     cur.execute('''
         SELECT e.event_id, e.sport_id, e.venue_id, e.event_date, e.event_time,
                s.name as sport_name, v.name as venue_name
@@ -65,9 +64,6 @@ def api_events():
     for r in rows:
         date = r['event_date']
         time = r['event_time']
-        # Ensure time has seconds if missing
-        if time and len(time.split(':')) == 2:
-            time = time + ':00'
         start = f"{date}T{time}" if date and time else None
         title = f"{r['sport_name']} @ {r['venue_name']}"
         events.append({'id': r['event_id'], 'sport_id': r['sport_id'], 'venue_id': r['venue_id'], 'title': title, 'start': start})
@@ -77,7 +73,7 @@ def api_events():
 
 @app.route('/<path:filename>')
 def static_files(filename):
-    # Serve frontend files for convenience
+    #Serve frontend files for convenience
     return send_from_directory(app.static_folder, filename)
 
 
