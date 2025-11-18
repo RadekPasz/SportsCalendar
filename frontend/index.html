@@ -39,15 +39,15 @@
         <label>Time:</label>
         <input type="time" id="event_time" required>
 
-        <label>Sport ID:</label>
-        <input type="number" id="sport_id" required>
+        <label>Sport:</label>
+        <select id="sport" required>
+            <option value="">Loading sports...</option>
+        </select>
 
-        <label>Venue ID:</label>
-        <input type="number" id="venue_id" required>
-
-        <label>Status:</label>
-        <input type="text" id="status" value="scheduled">
-
+        <label>Venue:</label>
+        <select id="venue" required>
+            <option value="">Loading venues...</option>
+        </select>
         <button type="submit">Add Event</button>
     </form>
 
