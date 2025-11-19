@@ -19,6 +19,48 @@ def get_db_connection():
         with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
             conn.executescript(f.read())
         conn.commit()
+    else:
+        # Migration: if existing DB lacks *_foreignkey columns, add them and copy values
+        try:
+            cur = conn.cursor()
+            # Check event table columns
+            cur.execute("PRAGMA table_info('event')")
+            cols = [r[1] for r in cur.fetchall()]
+            if 'sport_id_foreignkey' not in cols:
+                cur.execute('ALTER TABLE event ADD COLUMN sport_id_foreignkey INTEGER')
+            if 'venue_id_foreignkey' not in cols:
+                cur.execute('ALTER TABLE event ADD COLUMN venue_id_foreignkey INTEGER')
+            if 'description' not in cols:
+                cur.execute('ALTER TABLE event ADD COLUMN description TEXT')
+            # Copy existing values when possible
+            if 'sport_id' in cols and 'sport_id_foreignkey' not in cols:
+                # sport_id_foreignkey was just added; copy values
+                cur.execute('UPDATE event SET sport_id_foreignkey = sport_id WHERE sport_id_foreignkey IS NULL')
+            if 'venue_id' in cols and 'venue_id_foreignkey' not in cols:
+                cur.execute('UPDATE event SET venue_id_foreignkey = venue_id WHERE venue_id_foreignkey IS NULL')
+
+            # event_participant
+            cur.execute("PRAGMA table_info('event_participant')")
+            ep_cols = [r[1] for r in cur.fetchall()]
+            if 'event_id_foreignkey' not in ep_cols:
+                try:
+                    cur.execute('ALTER TABLE event_participant ADD COLUMN event_id_foreignkey INTEGER')
+                except Exception:
+                    pass
+            if 'team_id_foreignkey' not in ep_cols:
+                try:
+                    cur.execute('ALTER TABLE event_participant ADD COLUMN team_id_foreignkey INTEGER')
+                except Exception:
+                    pass
+            if 'event_id' in ep_cols:
+                cur.execute('UPDATE event_participant SET event_id_foreignkey = event_id WHERE event_id_foreignkey IS NULL')
+            if 'team_id' in ep_cols:
+                cur.execute('UPDATE event_participant SET team_id_foreignkey = team_id WHERE team_id_foreignkey IS NULL')
+
+            conn.commit()
+        except Exception:
+            # If migration fails, proceed without raising to avoid breaking startup
+            conn.rollback()
     return conn
 
 
@@ -49,13 +91,14 @@ def api_venues():
 def api_events():
     conn = get_db_connection()
     cur = conn.cursor()
-    #Join with sport and venue
+    # Join with sport and venue (use *_foreignkey columns)
     cur.execute('''
-        SELECT e.event_id, e.sport_id, e.venue_id, e.event_date, e.event_time,
+        SELECT e.event_id, e.sport_id_foreignkey as sport_id_foreignkey, e.venue_id_foreignkey as venue_id_foreignkey,
+               e.event_date, e.event_time, e.description,
                s.name as sport_name, v.name as venue_name
         FROM event e
-        JOIN sport s ON e.sport_id = s.sport_id
-        JOIN venue v ON e.venue_id = v.venue_id
+        JOIN sport s ON e.sport_id_foreignkey = s.sport_id
+        JOIN venue v ON e.venue_id_foreignkey = v.venue_id
         ORDER BY e.event_date, e.event_time
     ''')
     rows = cur.fetchall()
@@ -65,9 +108,12 @@ def api_events():
     for r in rows:
         date = r['event_date']
         time = r['event_time']
+        desc = r.get('description') if isinstance(r, dict) else r['description'] if 'description' in r.keys() else None
+        if time and len(time.split(':')) == 2:
+            time = time + ':00'
         start = f"{date}T{time}" if date and time else None
         title = f"{r['sport_name']} @ {r['venue_name']}"
-        events.append({'id': r['event_id'], 'sport_id': r['sport_id'], 'venue_id': r['venue_id'], 'title': title, 'start': start})
+        events.append({'id': r['event_id'], 'sport_id_foreignkey': r['sport_id_foreignkey'], 'venue_id_foreignkey': r['venue_id_foreignkey'], 'title': title, 'start': start, 'description': desc})
 
     return jsonify(events)
 
@@ -87,11 +133,12 @@ def api_events_search():
     like = f"%{q}%"
     try:
         cur.execute('''
-            SELECT e.event_id, e.sport_id, e.venue_id, e.event_date, e.event_time,
+            SELECT e.event_id, e.sport_id_foreignkey as sport_id_foreignkey, e.venue_id_foreignkey as venue_id_foreignkey,
+                   e.event_date, e.event_time, e.description,
                    s.name as sport_name, v.name as venue_name
             FROM event e
-            JOIN sport s ON e.sport_id = s.sport_id
-            JOIN venue v ON e.venue_id = v.venue_id
+            JOIN sport s ON e.sport_id_foreignkey = s.sport_id
+            JOIN venue v ON e.venue_id_foreignkey = v.venue_id
             WHERE s.name LIKE ? OR v.name LIKE ? OR e.event_date LIKE ? OR e.event_time LIKE ?
             ORDER BY e.event_date, e.event_time
         ''', (like, like, like, like))
@@ -106,11 +153,12 @@ def api_events_search():
     for r in rows:
         date = r['event_date']
         time = r['event_time']
+        desc = r.get('description') if isinstance(r, dict) else r['description'] if 'description' in r.keys() else None
         if time and len(time.split(':')) == 2:
             time = time + ':00'
         start = f"{date}T{time}" if date and time else None
         title = f"{r['sport_name']} @ {r['venue_name']}"
-        results.append({'id': r['event_id'], 'title': title, 'start': start, 'sport_id': r['sport_id'], 'venue_id': r['venue_id']})
+        results.append({'id': r['event_id'], 'title': title, 'start': start, 'sport_id_foreignkey': r['sport_id_foreignkey'], 'venue_id_foreignkey': r['venue_id_foreignkey'], 'description': desc})
 
     return jsonify(results)
 
@@ -118,10 +166,12 @@ def api_events_search():
 @app.route('/api/events', methods=['POST'])
 def add_event():
     data = request.get_json(force=True)
-    sport_id = data.get('sport_id')
-    venue_id = data.get('venue_id')
+    # Accept either new names or legacy names
+    sport_id = data.get('sport_id_foreignkey') or data.get('sport_id')
+    venue_id = data.get('venue_id_foreignkey') or data.get('venue_id')
     event_date = data.get('event_date')
     event_time = data.get('event_time')
+    description = data.get('description')
     if not (sport_id and venue_id and event_date and event_time):
         app.logger.warning('POST /api/events missing fields: %s', data)
         return jsonify({'error': 'Missing required fields'}), 400
@@ -135,8 +185,35 @@ def add_event():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('INSERT INTO event (sport_id, venue_id, event_date, event_time) VALUES (?, ?, ?, ?)',
-                    (sport_id, venue_id, event_date, event_time))
+        # Determine which columns exist to support older/new DB schemas
+        cur.execute("PRAGMA table_info('event')")
+        cols = [r[1] for r in cur.fetchall()]
+        # Build insert dynamically
+        insert_cols = []
+        insert_vals = []
+        # If legacy columns exist, set them too to satisfy NOT NULL constraints on older DBs
+        if 'sport_id' in cols:
+            insert_cols.append('sport_id')
+            insert_vals.append(sport_id)
+        if 'sport_id_foreignkey' in cols:
+            insert_cols.append('sport_id_foreignkey')
+            insert_vals.append(sport_id)
+        if 'venue_id' in cols:
+            insert_cols.append('venue_id')
+            insert_vals.append(venue_id)
+        if 'venue_id_foreignkey' in cols:
+            insert_cols.append('venue_id_foreignkey')
+            insert_vals.append(venue_id)
+        # date, time, description
+        insert_cols.extend(['event_date', 'event_time'])
+        insert_vals.extend([event_date, event_time])
+        if 'description' in cols:
+            insert_cols.append('description')
+            insert_vals.append(description)
+
+        placeholders = ','.join(['?'] * len(insert_cols))
+        sql = f"INSERT INTO event ({','.join(insert_cols)}) VALUES ({placeholders})"
+        cur.execute(sql, tuple(insert_vals))
         conn.commit()
         event_id = cur.lastrowid
         conn.close()

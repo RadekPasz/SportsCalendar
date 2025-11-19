@@ -32,7 +32,16 @@ document.addEventListener('DOMContentLoaded', function () {
         events.forEach((ev, idx) => {
             const li = document.createElement('li');
             const date = ev.start ? new Date(ev.start).toLocaleString() : 'Unknown date';
-            li.textContent = `${ev.title} — ${date}`;
+            const titleDiv = document.createElement('div');
+            titleDiv.textContent = `${ev.title} — ${date}`;
+            li.appendChild(titleDiv);
+            if (ev.description) {
+                const d = document.createElement('div');
+                d.style.fontSize = '0.9em';
+                d.style.color = '#555';
+                d.textContent = ev.description;
+                li.appendChild(d);
+            }
             ul.appendChild(li);
         });
         eventsContainer.appendChild(ul);
@@ -82,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function () {
             remoteEvents.forEach(re => {
                 //Only add events that have a valid start
                 if (re.start) {
-                    const ev = { id: re.id, title: re.title, start: re.start };
+                    const ev = { id: re.id, title: re.title, start: re.start, description: re.description };
                     calendar.addEvent(ev);
                     events.push(ev);
                 }
@@ -117,13 +126,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     const li = document.createElement('li');
                     const date = it.start ? new Date(it.start).toLocaleString() : 'Unknown date';
                     li.textContent = `${it.title} — ${date}`;
+                    if (it.description) {
+                        const d = document.createElement('div');
+                        d.style.fontSize = '0.9em';
+                        d.style.color = '#555';
+                        d.textContent = it.description;
+                        li.appendChild(d);
+                    }
                     li.tabIndex = 0;
                     li.addEventListener('click', () => {
                         if (it.start) {
                             calendar.gotoDate(it.start);
                         }
                         //Display details
-                        alert(it.title + '\n' + (it.start || ''));
+                        alert(it.title + '\n' + (it.start || '') + (it.description ? ('\n' + it.description) : ''));
                     });
                     ul.appendChild(li);
                 });
@@ -163,33 +179,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const iso = date + 'T' + time;
             const title = `${sport} @ ${venue} (${status})`;
-            //Get selected IDs for POST
+            //Get selected IDs and optional description for POST
             const sport_id = sportSelectEl ? sportSelectEl.value : '';
             const venue_id = venueSelectEl ? venueSelectEl.value : '';
+            const description = (document.getElementById('description') || {}).value || null;
 
-            //POST to backend
+            //POST to backend using new *_foreignkey keys
             fetch('/api/events', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    sport_id,
-                    venue_id,
+                    sport_id_foreignkey: sport_id,
+                    venue_id_foreignkey: venue_id,
                     event_date: date,
-                    event_time: time
+                    event_time: time,
+                    description: description
                 })
             })
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to save event');
-                return res.json();
-            })
-            .then(data => {
+            .then(async res => {
+                let payload = {};
+                try { payload = await res.json(); } catch (e) {}
+                if (!res.ok) throw new Error(payload.error || 'Failed to save event');
+                // Add to calendar and list
                 calendar.addEvent({ title, start: iso });
-                events.push({ title, start: iso });
+                events.push({ title, start: iso, description });
                 renderEventsList();
                 form.reset();
             })
             .catch(err => {
-                alert('Could not save event: ' + err);
+                alert('Could not save event: ' + (err.message || err));
             });
         });
     }

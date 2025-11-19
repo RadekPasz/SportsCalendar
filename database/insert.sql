@@ -18,14 +18,14 @@ INSERT INTO team (name) VALUES
 ('Vienna'),
 ('Graz');
 
-INSERT INTO event (event_date, event_time, venue_id, sport_id)
-VALUES ('2025-07-18', '18:30', 1, 1);
-INSERT INTO event (event_date, event_time, venue_id, sport_id)
-VALUES ('2025-10-23', '09:45', 2, 2);
+INSERT INTO event (event_date, event_time, venue_id_foreignkey, sport_id_foreignkey, description)
+VALUES ('2025-07-18', '18:30', 1, 1, 'Season opener: local derby.');
+INSERT INTO event (event_date, event_time, venue_id_foreignkey, sport_id_foreignkey, description)
+VALUES ('2025-10-23', '09:45', 2, 2, 'Morning friendly match.');
 
-INSERT INTO event_participant (event_id, participant_name, team_id) VALUES
+INSERT INTO event_participant (event_id_foreignkey, participant_name, team_id_foreignkey) VALUES
 (1, 'Salzburg', 1),
 (1, 'Sturm', 2);
-INSERT INTO event_participant (event_id, participant_name, team_id) VALUES
+INSERT INTO event_participant (event_id_foreignkey, participant_name, team_id_foreignkey) VALUES
 (2, 'KAC', 3),
 (2, 'Capitals', 4);

@@ -12,12 +12,13 @@ CREATE TABLE venue (
 
 CREATE TABLE event (
     event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sport_id INTEGER NOT NULL,
-    venue_id INTEGER NOT NULL,
+    sport_id_foreignkey INTEGER NOT NULL,
+    venue_id_foreignkey INTEGER NOT NULL,
+    description TEXT,
     event_date DATE NOT NULL,
     event_time TIME NOT NULL,
-    FOREIGN KEY (sport_id) REFERENCES sport(sport_id),
-    FOREIGN KEY (venue_id) REFERENCES venue(venue_id)
+    FOREIGN KEY (sport_id_foreignkey) REFERENCES sport(sport_id),
+    FOREIGN KEY (venue_id_foreignkey) REFERENCES venue(venue_id)
 );
 
 CREATE TABLE team (
@@ -26,10 +27,10 @@ CREATE TABLE team (
 );
 
 CREATE TABLE event_participant (
-    event_id INTEGER NOT NULL,
+    event_id_foreignkey INTEGER NOT NULL,
     participant_name TEXT NOT NULL,
-    team_id INTEGER NOT NULL,
-    PRIMARY KEY (event_id, participant_name),
-    FOREIGN KEY (event_id) REFERENCES event(event_id),
-    FOREIGN KEY (team_id) REFERENCES team(team_id)
+    team_id_foreignkey INTEGER NOT NULL,
+    PRIMARY KEY (event_id_foreignkey, participant_name),
+    FOREIGN KEY (event_id_foreignkey) REFERENCES event(event_id),
+    FOREIGN KEY (team_id_foreignkey) REFERENCES team(team_id)
 );
