@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', function () {
         eventsContainer.appendChild(ul);
     }
 
-    // Populate sport and venue selects from backend API
     const sportSelect = document.getElementById('sport');
     const venueSelect = document.getElementById('venue');
 
@@ -54,14 +53,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const sports = await sportsRes.json();
             const venues = await venuesRes.json();
 
-            // Populate sport select
+            //Filling out the sports and venues scrolldown menus
             if (sportSelect) {
                 sportSelect.innerHTML = '';
                 sportSelect.appendChild(new Option('Select sport', ''));
                 sports.forEach(s => sportSelect.appendChild(new Option(s.name, s.id)));
             }
 
-            // Populate venue select
             if (venueSelect) {
                 venueSelect.innerHTML = '';
                 venueSelect.appendChild(new Option('Select venue', ''));
@@ -75,14 +73,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Fetch existing events from backend and add them to calendar/list
+    //Take existing events from backend and add them to calendar and list
     async function fetchEvents() {
         try {
             const res = await fetch('/api/events');
             if (!res.ok) throw new Error('Failed to fetch events');
             const remoteEvents = await res.json();
             remoteEvents.forEach(re => {
-                // Only add events that have a valid start
+                //Only add events that have a valid start
                 if (re.start) {
                     const ev = { id: re.id, title: re.title, start: re.start };
                     calendar.addEvent(ev);
@@ -92,11 +90,10 @@ document.addEventListener('DOMContentLoaded', function () {
             renderEventsList();
         } catch (err) {
             console.warn('Could not load events from backend:', err);
-            // keep the local list as-is; user can still add events manually
         }
     }
 
-    // Handle form submit using sport and venue names
+    //Handle submit form
     if (form) {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -106,7 +103,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const venueSelectEl = document.getElementById('venue');
             const sport = sportSelectEl ? sportSelectEl.selectedOptions[0].text : '';
             const venue = venueSelectEl ? venueSelectEl.selectedOptions[0].text : '';
-            const status = document.getElementById('status').value || 'scheduled';
+            const status = 'scheduled';
+
+              console.log('Form submitted:', {date, time, sport, venue, status});
 
             if (!date || !time) {
                 alert('Please provide date and time');
@@ -119,21 +118,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const iso = date + 'T' + time;
             const title = `${sport} @ ${venue} (${status})`;
-            const newEvent = { title: title, start: iso };
+            //Get selected IDs for POST
+            const sport_id = sportSelectEl ? sportSelectEl.value : '';
+            const venue_id = venueSelectEl ? venueSelectEl.value : '';
 
-            calendar.addEvent(newEvent);
-            events.push(newEvent);
-            renderEventsList();
-
-            form.reset();
-            if (document.getElementById('status')) document.getElementById('status').value = 'scheduled';
+            //POST to backend
+            fetch('/api/events', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    sport_id,
+                    venue_id,
+                    event_date: date,
+                    event_time: time
+                })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to save event');
+                return res.json();
+            })
+            .then(data => {
+                calendar.addEvent({ title, start: iso });
+                events.push({ title, start: iso });
+                renderEventsList();
+                form.reset();
+            })
+            .catch(err => {
+                alert('Could not save event: ' + err);
+            });
         });
     }
 
-    // Load options from backend
+    //Load options
     fetchOptions();
 
-    // Load existing events
+    //Load existing events
     fetchEvents();
 
     renderEventsList();

@@ -64,7 +64,7 @@ def _build_events_query(
         full_query += " " + " ".join(join_clauses)
         
     if where_clauses:
-        #all filter conditions combined 
+        #All filter conditions combined 
         full_query += " WHERE " + " AND ".join(where_clauses)
         
     full_query += " ORDER BY e.event_date ASC;"
