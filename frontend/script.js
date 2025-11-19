@@ -93,6 +93,51 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+        //Search handler
+        const searchInput = document.getElementById('eventSearch');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchResults = document.getElementById('searchResults');
+
+        async function doSearch(q) {
+            if (!q || q.trim() === '') {
+                searchResults.innerHTML = '<p>Enter a search term.</p>';
+                return;
+            }
+            try {
+                searchResults.innerHTML = '<p>Searching…</p>';
+                const res = await fetch('/api/events/search?q=' + encodeURIComponent(q));
+                if (!res.ok) throw new Error('Search failed');
+                const items = await res.json();
+                if (!Array.isArray(items) || items.length === 0) {
+                    searchResults.innerHTML = '<p>No results.</p>';
+                    return;
+                }
+                const ul = document.createElement('ul');
+                items.forEach(it => {
+                    const li = document.createElement('li');
+                    const date = it.start ? new Date(it.start).toLocaleString() : 'Unknown date';
+                    li.textContent = `${it.title} — ${date}`;
+                    li.tabIndex = 0;
+                    li.addEventListener('click', () => {
+                        if (it.start) {
+                            calendar.gotoDate(it.start);
+                        }
+                        //Display details
+                        alert(it.title + '\n' + (it.start || ''));
+                    });
+                    ul.appendChild(li);
+                });
+                searchResults.innerHTML = '';
+                searchResults.appendChild(ul);
+            } catch (err) {
+                console.error('Search error', err);
+                searchResults.innerHTML = '<p>Error running search.</p>';
+            }
+        }
+
+        if (searchBtn) searchBtn.addEventListener('click', () => doSearch(searchInput.value));
+        if (searchInput) searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doSearch(searchInput.value); } });
+
     //Handle submit form
     if (form) {
         form.addEventListener('submit', function (e) {

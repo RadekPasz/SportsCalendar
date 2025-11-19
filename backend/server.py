@@ -72,6 +72,49 @@ def api_events():
     return jsonify(events)
 
 
+@app.route('/api/events/search')
+def api_events_search():
+    q = (request.args.get('q') or '').strip()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    params = []
+    if q == '':
+        #Return empty list for empty query
+        conn.close()
+        return jsonify([])
+
+    #Search by keywords
+    like = f"%{q}%"
+    try:
+        cur.execute('''
+            SELECT e.event_id, e.sport_id, e.venue_id, e.event_date, e.event_time,
+                   s.name as sport_name, v.name as venue_name
+            FROM event e
+            JOIN sport s ON e.sport_id = s.sport_id
+            JOIN venue v ON e.venue_id = v.venue_id
+            WHERE s.name LIKE ? OR v.name LIKE ? OR e.event_date LIKE ? OR e.event_time LIKE ?
+            ORDER BY e.event_date, e.event_time
+        ''', (like, like, like, like))
+        rows = cur.fetchall()
+    except Exception as e:
+        app.logger.exception('Error running search')
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+    conn.close()
+
+    results = []
+    for r in rows:
+        date = r['event_date']
+        time = r['event_time']
+        if time and len(time.split(':')) == 2:
+            time = time + ':00'
+        start = f"{date}T{time}" if date and time else None
+        title = f"{r['sport_name']} @ {r['venue_name']}"
+        results.append({'id': r['event_id'], 'title': title, 'start': start, 'sport_id': r['sport_id'], 'venue_id': r['venue_id']})
+
+    return jsonify(results)
+
+
 @app.route('/api/events', methods=['POST'])
 def add_event():
     data = request.get_json(force=True)

@@ -47,6 +47,30 @@ body {
     margin: 20px auto;
 }
 
+/* Search panel */
+.search-panel {
+    max-width: 900px;
+    margin: 10px auto;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.search-panel input[type="search"] {
+    flex: 1 1 auto;
+    padding: 8px;
+}
+.search-results {
+    max-width: 900px;
+    margin: 6px auto 0;
+    padding: 10px;
+}
+.search-results ul { list-style: none; padding: 0; margin: 0; }
+.search-results li { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+.search-results li:hover { background: #f0f8ff; }
+
 .event-card {
     background: white;
     padding: 15px;
