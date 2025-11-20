@@ -20,10 +20,9 @@ def get_db_connection():
             conn.executescript(f.read())
         conn.commit()
     else:
-        # Migration: if existing DB lacks *_foreignkey columns, add them and copy values
         try:
             cur = conn.cursor()
-            # Check event table columns
+            #Check event table
             cur.execute("PRAGMA table_info('event')")
             cols = [r[1] for r in cur.fetchall()]
             if 'sport_id_foreignkey' not in cols:
@@ -32,14 +31,12 @@ def get_db_connection():
                 cur.execute('ALTER TABLE event ADD COLUMN venue_id_foreignkey INTEGER')
             if 'description' not in cols:
                 cur.execute('ALTER TABLE event ADD COLUMN description TEXT')
-            # Copy existing values when possible
+            #Copy existing values when possible
             if 'sport_id' in cols and 'sport_id_foreignkey' not in cols:
-                # sport_id_foreignkey was just added; copy values
                 cur.execute('UPDATE event SET sport_id_foreignkey = sport_id WHERE sport_id_foreignkey IS NULL')
             if 'venue_id' in cols and 'venue_id_foreignkey' not in cols:
                 cur.execute('UPDATE event SET venue_id_foreignkey = venue_id WHERE venue_id_foreignkey IS NULL')
 
-            # event_participant
             cur.execute("PRAGMA table_info('event_participant')")
             ep_cols = [r[1] for r in cur.fetchall()]
             if 'event_id_foreignkey' not in ep_cols:
@@ -59,7 +56,7 @@ def get_db_connection():
 
             conn.commit()
         except Exception:
-            # If migration fails, proceed without raising to avoid breaking startup
+            #If migration fails, proceed without raising to avoid breaking startup
             conn.rollback()
     return conn
 
@@ -86,12 +83,12 @@ def api_venues():
     return jsonify(venues)
 
 
-#Displaying events in the app
+#For displaying events in the calendar
 @app.route('/api/events', methods=['GET'])
 def api_events():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Join with sport and venue (use *_foreignkey columns)
+    #Join with sport and venue for readability
     cur.execute('''
         SELECT e.event_id, e.sport_id_foreignkey as sport_id_foreignkey, e.venue_id_foreignkey as venue_id_foreignkey,
                e.event_date, e.event_time, e.description,
@@ -166,7 +163,7 @@ def api_events_search():
 @app.route('/api/events', methods=['POST'])
 def add_event():
     data = request.get_json(force=True)
-    # Accept either new names or legacy names
+    #Accept either new names or legacy names
     sport_id = data.get('sport_id_foreignkey') or data.get('sport_id')
     venue_id = data.get('venue_id_foreignkey') or data.get('venue_id')
     event_date = data.get('event_date')
@@ -185,13 +182,13 @@ def add_event():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # Determine which columns exist to support older/new DB schemas
+        #Determine which columns exist to support older/new DB schemas
         cur.execute("PRAGMA table_info('event')")
         cols = [r[1] for r in cur.fetchall()]
-        # Build insert dynamically
+        #Build insert dynamically
         insert_cols = []
         insert_vals = []
-        # If legacy columns exist, set them too to satisfy NOT NULL constraints on older DBs
+        #If legacy columns exist, set them too to satisfy NOT NULL constraints on older DBs
         if 'sport_id' in cols:
             insert_cols.append('sport_id')
             insert_vals.append(sport_id)
@@ -204,7 +201,7 @@ def add_event():
         if 'venue_id_foreignkey' in cols:
             insert_cols.append('venue_id_foreignkey')
             insert_vals.append(venue_id)
-        # date, time, description
+        #date, time, description
         insert_cols.extend(['event_date', 'event_time'])
         insert_vals.extend([event_date, event_time])
         if 'description' in cols:

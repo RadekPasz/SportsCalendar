@@ -8,7 +8,7 @@ import json
 def create_test_db(db_path):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    #Create a tables for test purposes
+    #Create tables for test purposes
     cur.executescript(open(os.path.join('database', 'schema.sql'), 'r', encoding='utf-8').read())
     cur.execute("INSERT INTO sport (name) VALUES (?)", ('TestSport',))
     cur.execute("INSERT INTO venue (name, city, address) VALUES (?, ?, ?)", ('TestVenue', 'TestCity', 'Addr 1'))
