@@ -1,1 +1,6 @@
 Flask==2.3.3
+pytest==7.0.1
+fastapi
+uvicorn
+typing
+python-multipart
