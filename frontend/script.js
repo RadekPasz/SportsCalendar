@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const venue_id = venueSelectEl ? venueSelectEl.value : '';
             const description = (document.getElementById('description') || {}).value || null;
 
-            //POST to backend using new *_foreignkey keys
+            //POST to backend 
             fetch('/api/events', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 let payload = {};
                 try { payload = await res.json(); } catch (e) {}
                 if (!res.ok) throw new Error(payload.error || 'Failed to save event');
-                // Add to calendar and list
+                //Add to calendar and list
                 calendar.addEvent({ title, start: iso });
                 events.push({ title, start: iso, description });
                 renderEventsList();
