@@ -1,4 +1,3 @@
-# backend/app.py
 from flask import Flask, jsonify, send_from_directory, request
 import sqlite3
 import os
