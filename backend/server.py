@@ -7,6 +7,7 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(APP_DIR, '..'))
 DB_PATH = os.path.join(ROOT, "database", "sports.db")
 SCHEMA_PATH = os.path.join(ROOT, 'database', 'schema.sql')
+INSERT_PATH = os.path.join(ROOT, 'database', 'insert.sql')
 
 app = Flask(__name__, static_folder=os.path.join(ROOT, 'frontend'))
 
@@ -20,6 +21,11 @@ def get_db_connection() -> sqlite3.Connection:
     if need_init:
         if os.path.exists(SCHEMA_PATH):
             with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
+                conn.executescript(f.read())
+            conn.commit()
+        #Seed data if insert.sql exists
+        if os.path.exists(INSERT_PATH):
+            with open(INSERT_PATH, 'r', encoding='utf-8') as f:
                 conn.executescript(f.read())
             conn.commit()
         else:
@@ -64,8 +70,8 @@ def api_events():
                s.name as sport_name,
                v.name as venue_name
         FROM event e
-        LEFT JOIN sport s ON e.sport_id = s.sport_id
-        LEFT JOIN venue v ON e.venue_id = v.venue_id
+        LEFT JOIN sport s ON e.sport_id_foreignkey = s.sport_id
+        LEFT JOIN venue v ON e.venue_id_foreignkey = v.venue_id
         ORDER BY e.event_date, e.event_time
     ''')
     rows = cur.fetchall()
@@ -110,8 +116,8 @@ def api_events_search():
                    s.name as sport_name,
                    v.name as venue_name
             FROM event e
-            LEFT JOIN sport s ON e.sport_id = s.sport_id
-            LEFT JOIN venue v ON e.venue_id = v.venue_id
+            LEFT JOIN sport s ON e.sport_id_foreignkey = s.sport_id
+            LEFT JOIN venue v ON e.venue_id_foreignkey = v.venue_id
             WHERE s.name LIKE ? OR v.name LIKE ? OR e.event_date LIKE ? OR e.event_time LIKE ?
             ORDER BY e.event_date, e.event_time
         ''', (like, like, like, like))
@@ -146,8 +152,8 @@ def api_events_search():
 @app.route('/api/events', methods=['POST'])
 def add_event():
     data = request.get_json(force=True)
-    sport_id = data.get('sport_id')
-    venue_id = data.get('venue_id')
+    sport_id = data.get('sport_id_foreignkey') or data.get('sport_id')
+    venue_id = data.get('venue_id_foreignkey') or data.get('venue_id')
     event_date = data.get('event_date')
     event_time = data.get('event_time')
     description = data.get('description')
@@ -169,7 +175,7 @@ def add_event():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('''
-            INSERT INTO event (sport_id, venue_id, event_date, event_time, description)
+            INSERT INTO event (sport_id_foreignkey, venue_id_foreignkey, event_date, event_time, description)
             VALUES (?, ?, ?, ?, ?)
         ''', (sport_id, venue_id, event_date, event_time, description))
         conn.commit()

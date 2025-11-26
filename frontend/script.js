@@ -162,26 +162,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const time = document.getElementById('event_time').value;
             const sportSelectEl = document.getElementById('sport');
             const venueSelectEl = document.getElementById('venue');
+            const sport_id = sportSelectEl ? sportSelectEl.value : '';
+            const venue_id = venueSelectEl ? venueSelectEl.value : '';
             const sport = sportSelectEl ? sportSelectEl.selectedOptions[0].text : '';
             const venue = venueSelectEl ? venueSelectEl.selectedOptions[0].text : '';
-            const status = 'scheduled';
-
-              console.log('Form submitted:', {date, time, sport, venue, status});
 
             if (!date || !time) {
                 alert('Please provide date and time');
                 return;
             }
-            if (!sport || !venue) {
+            if (!sport_id || !venue_id) {
                 alert('Please choose a sport and a venue');
                 return;
             }
 
             const iso = date + 'T' + time;
-            const title = `${sport} @ ${venue} (${status})`;
-            //Get selected IDs and optional description for POST
-            const sport_id = sportSelectEl ? sportSelectEl.value : '';
-            const venue_id = venueSelectEl ? venueSelectEl.value : '';
+            const title = `${sport} @ ${venue}`;
+            //Get optional description for POST
             const description = (document.getElementById('description') || {}).value || null;
 
             //POST to backend 
